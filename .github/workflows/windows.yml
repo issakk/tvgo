@@ -71,6 +71,35 @@ jobs:
       - name: Test
         run: nsh test
 
+      - name: Set up the JDK for the spider host
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build the spider host
+        shell: pwsh
+        run: ./spider-host/build.ps1
+
+      - name: Pack the spider host with a trimmed JRE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $stage = Join-Path $env:RUNNER_TEMP 'spider-host'
+          Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage 'spider-host\lib') | Out-Null
+          Copy-Item 'spider-host\build\spider-host.jar' (Join-Path $stage 'spider-host') -Force
+          Copy-Item 'spider-host\vendor\*.jar' (Join-Path $stage 'spider-host\lib') -Force
+          Copy-Item 'spider-host\start.cmd' (Join-Path $stage 'spider-host') -Force
+          Copy-Item 'spider-host\README.md' $stage -Force
+          & jlink --add-modules java.base,jdk.httpserver,java.logging,java.sql,java.naming,java.security.jgss,jdk.unsupported `
+              --strip-debug --no-header-files --no-man-pages `
+              --output (Join-Path $stage 'runtime\jre')
+          if ($LASTEXITCODE -ne 0) { throw "jlink failed with exit code $LASTEXITCODE" }
+          New-Item -ItemType Directory -Force -Path 'dist' | Out-Null
+          Compress-Archive -Path (Join-Path $stage '*') -DestinationPath 'dist\TVGo-spider-host-windows.zip' -Force
+          Get-ChildItem 'dist' | ForEach-Object { Write-Host "artifact: $($_.Name) ($($_.Length) bytes)" }
+
       - name: Install Inno Setup
         shell: pwsh
         continue-on-error: true

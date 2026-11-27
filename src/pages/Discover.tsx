@@ -106,7 +106,11 @@ export function Discover() {
     const cms = sites.filter((site) => site.type === 0 || site.type === 1).length;
     if (cms > 0) return "这个配置的 CMS 站点都在配置里隐藏了或在这里停用了，去设置里打开它们。";
     if (sites.length === 0) return "这个配置没有声明任何站点。";
-    return `配置里的 ${sites.length} 个站点都需要 Spider 或外部应用，Windows 版暂不支持；直播源仍然可用。`;
+    const spider = sites.filter((site) => site.type === 3).length;
+    if (spider > 0) {
+      return `配置里的 ${sites.length} 个站点都是 Spider 站点：在设置里连上 Spider 宿主就能浏览，直播源现在就能用。`;
+    }
+    return `配置里的 ${sites.length} 个站点都需要外部应用，Windows 版暂不支持；直播源仍然可用。`;
   };
   const recentHistory = () => historyEntries().slice(0, 4);
 

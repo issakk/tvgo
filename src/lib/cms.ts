@@ -3,6 +3,7 @@
 // search and the play lines of a title.
 import type { Category, Episode, PlayLine, SiteConfig, VodDetail, VodItem, VodPage } from "../types";
 import { cleanText, fetchText, parseLooseJson } from "./http";
+import { spiderCategories, spiderDetail, spiderPage, spiderSearch } from "./spider";
 
 /** Builds a URL from a site endpoint and the query it takes. */
 function endpoint(api: string, params: Record<string, string | number | undefined>): string {
@@ -73,6 +74,8 @@ export function parsePlayLines(playFrom: string, playUrl: string): PlayLine[] {
 
 /** The categories a site offers. */
 export async function loadCategories(site: SiteConfig): Promise<Category[]> {
+  // type 3: a CatVod spider, run by the companion host.
+  if (site.type === 3) return spiderCategories(site);
   if (site.type === 0) {
     return xmlCategories(await fetchText(endpoint(site.api, { ac: "list" })));
   }
@@ -91,6 +94,7 @@ export async function loadCategories(site: SiteConfig): Promise<Category[]> {
 
 /** One page of a site's list for `typeId`. */
 export async function loadPage(site: SiteConfig, typeId: string, page: number): Promise<VodPage> {
+  if (site.type === 3) return spiderPage(site, typeId, page);
   if (site.type === 0) {
     return xmlPage(await fetchText(endpoint(site.api, { ac: "list", t: typeId, pg: page })), page);
   }
@@ -114,6 +118,7 @@ export async function loadPage(site: SiteConfig, typeId: string, page: number): 
 
 /** One title with its play lines. */
 export async function loadDetail(site: SiteConfig, id: string): Promise<VodDetail> {
+  if (site.type === 3) return spiderDetail(site, id);
   if (site.type === 0) {
     return xmlDetail(await fetchText(endpoint(site.api, { ac: "list", ids: id })));
   }
@@ -139,6 +144,7 @@ export async function loadDetail(site: SiteConfig, id: string): Promise<VodDetai
 export async function searchSite(site: SiteConfig, keyword: string): Promise<VodItem[]> {
   const word = keyword.trim();
   if (!word) return [];
+  if (site.type === 3) return spiderSearch(site, word);
   if (site.type === 0) {
     const text = await fetchText(endpoint(site.api, { ac: "list", wd: word, pg: 1 }));
     return xmlVideos(text)

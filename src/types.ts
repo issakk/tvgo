@@ -41,6 +41,8 @@ export interface ConfigDoc {
   flags: string[];
   /** The configurations a multi-repo document lists; empty for a normal one. */
   repos: ConfigRepo[];
+  /** The spider jar (`csp_*` sites run it); empty when the configuration names none. */
+  spider: string;
 }
 
 /** One title in a site's list. */

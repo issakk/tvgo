@@ -6,6 +6,7 @@ import type { ConfigDoc, LiveSource, SiteConfig, VodDetail, VodItem } from "./ty
 import { parseConfigDocument } from "./lib/config";
 import { fetchText, hashId, messageOf } from "./lib/http";
 import { loadDetail, searchSite } from "./lib/cms";
+import { DEFAULT_SPIDER_HOST, setSpiderTarget, spiderAvailable } from "./lib/spider";
 
 const SETTINGS_KEY = "tvgo/settings";
 const CONFIGS_KEY = "tvgo/configs";
@@ -27,6 +28,8 @@ export interface Settings {
   activeConfigId: string;
   siteKey: string;
   disabledSites: string[];
+  /** Where the CatVod spider host listens; "" means the default address. */
+  spiderHost: string;
 }
 
 /** One title watched before, and where the user stopped. */
@@ -75,6 +78,7 @@ const DEFAULT_SETTINGS: Settings = {
   activeConfigId: "",
   siteKey: "",
   disabledSites: [],
+  spiderHost: DEFAULT_SPIDER_HOST,
 };
 
 const configs = signal<ConfigSource[]>([]);
@@ -85,6 +89,7 @@ const searches = signal<string[]>([]);
 const ready = signal(false);
 const configBusy = signal(false);
 const configError = signal("");
+const spiderUp = signal(false);
 const searchState = signal<SearchState>({ keyword: "", groups: [], busy: false, done: 0, total: 0, error: "" });
 
 /** Details already loaded, so the player does not fetch them again. */
@@ -116,6 +121,8 @@ export async function hydrate(): Promise<void> {
     console.warn("TVGo: could not read the saved state", error);
   } finally {
     ready.set(true);
+    syncSpider();
+    void checkSpider();
   }
 }
 
@@ -144,9 +151,10 @@ export const configSites = computed<SiteConfig[]>(() => {
   const source = activeConfig();
   if (!source) return [];
   const disabled = new Set(settings().disabledSites);
+  const spider = spiderReady() && !!source.config.spider;
   return source.config.sites.filter(
     (site) =>
-      (site.type === 0 || site.type === 1) &&
+      (site.type === 0 || site.type === 1 || (site.type === 3 && spider)) &&
       site.hide === 0 &&
       !disabled.has(disabledSiteId(source.id, site.key)),
   );
@@ -212,7 +220,36 @@ export function findSite(key: string): SiteConfig | null {
 
 /** Whether the site can be browsed here: its protocol is supported. */
 export function isSupportedSite(site: SiteConfig | null): boolean {
-  return site !== null && (site.type === 0 || site.type === 1);
+  if (site === null) return false;
+  if (site.type === 0 || site.type === 1) return true;
+  return site.type === 3 && spiderReady();
+}
+
+/** Whether the spider host answered and the active configuration names a jar. */
+export const spiderReady = computed<boolean>(() => spiderUp());
+
+/** The address the app talks to, for the settings page. */
+export function spiderAddress(): string {
+  return settings().spiderHost || DEFAULT_SPIDER_HOST;
+}
+
+/** Points the spider client at the configured host and the active configuration's jar. */
+export function syncSpider(): void {
+  setSpiderTarget(spiderAddress(), activeConfig()?.config.spider ?? "");
+}
+
+/** Asks the host whether it is up, and lets the site lists follow the answer. */
+export async function checkSpider(): Promise<boolean> {
+  syncSpider();
+  const up = await spiderAvailable();
+  spiderUp.set(up);
+  return up;
+}
+
+/** Shows the app another spider host address. */
+export function setSpiderHost(address: string): void {
+  patchSettings({ spiderHost: address.trim() || DEFAULT_SPIDER_HOST });
+  void checkSpider();
 }
 
 /** Adds a configuration from a URL and makes it the active one; a multi-repo adds its repositories. */
@@ -286,8 +323,11 @@ export function removeConfig(id: string): void {
 export function chooseConfig(id: string): void {
   const source = configs().find((item) => item.id === id);
   if (!source) return;
-  const site = source.config.sites.find((item) => (item.type === 0 || item.type === 1) && item.hide === 0);
+  const site = source.config.sites.find(
+    (item) => (item.type === 0 || item.type === 1 || (item.type === 3 && spiderUp())) && item.hide === 0,
+  );
   patchSettings({ activeConfigId: id, siteKey: site?.key ?? "" });
+  syncSpider();
 }
 
 /** Shows another site of the active configuration. */
@@ -532,6 +572,8 @@ function commitSources(sources: ConfigSource[]): void {
   const active = sources.find(supported) ?? sources[0];
   const site = active.config.sites.find((item) => (item.type === 0 || item.type === 1) && item.hide === 0);
   patchSettings({ activeConfigId: active.id, siteKey: site?.key ?? "" });
+  syncSpider();
+  void checkSpider();
 }
 
 function patchSettings(patch: Partial<Settings>): void {
@@ -563,6 +605,7 @@ function readSettings(raw: string | null): Settings {
   const theme = record.theme;
   return {
     theme: theme === "light" || theme === "dark" || theme === "system" ? theme : "system",
+    spiderHost: typeof record.spiderHost === "string" ? record.spiderHost : DEFAULT_SPIDER_HOST,
     activeConfigId: typeof record.activeConfigId === "string" ? record.activeConfigId : "",
     siteKey: typeof record.siteKey === "string" ? record.siteKey : "",
     disabledSites: Array.isArray(record.disabledSites) ? record.disabledSites.map((item) => String(item)) : [],
@@ -590,6 +633,7 @@ function readConfigs(raw: string | null): ConfigSource[] {
         parses: Array.isArray(config.parses) ? config.parses : [],
         flags: Array.isArray(config.flags) ? config.flags : [],
         repos: Array.isArray(config.repos) ? config.repos : [],
+        spider: typeof config.spider === "string" ? config.spider : "",
       },
     });
   }

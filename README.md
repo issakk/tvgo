@@ -28,10 +28,21 @@ Every build runs on GitHub Actions (`windows-latest`); nothing is compiled local
   where the user stopped.
 - **Appearance.** Light, dark or system, from NSH's theme tokens.
 
-Not supported yet: CSP Spider sites (`api: csp_*`) and external-app sites (`type: 4`) need a JavaScript spider
-runtime or the external app; they are listed in Settings, marked as unsupported, and left out of browsing and search.
-Many shared configurations (for example `https://8815.kstore.vip/tvbox/wmz`) are entirely Spider sites: such a
-configuration imports, shows its live playlists, and explains on the discovery page that its sites need a spider.
+- **Spider sites (`api: csp_*`).** A configuration's `spider.jar` runs, without Android, in a companion JVM
+  program (`spider-host/`) the app talks to over localhost. With a host running, `csp_*` sites browse, search,
+  open details and play like CMS sites; without one they are listed in Settings and left out of browsing, exactly
+  as before. Episodes a spider says need a parser (`parse: 1`) are not played yet.
+
+Not supported yet: external-app sites (`type: 4`), `.py` / `.js` spider scripts, and packed spider jars the host
+cannot convert. They are listed in Settings as unsupported and left out of browsing and search.
+
+### Spider host
+
+`spider-host/` is a JDK program: it converts the configuration's `classes.dex` to JVM classes (repairing what
+dex2jar gets wrong), answers the CatVod `Spider` contract, and serves JSON over `http://127.0.0.1:29123`.
+The CI publishes `TVGo-spider-host-windows.zip` (jar + trimmed JRE + `start.cmd`) with each release; unpack it,
+run `start.cmd`, then set the address in Settings → Spider 宿主 and press 检测. `spider-host/README.md` documents
+the protocol and the repairs.
 
 ## Using a configuration
 

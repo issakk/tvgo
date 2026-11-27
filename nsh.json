@@ -1,8 +1,8 @@
 {
   "name": "TVGo",
   "id": "dev.tvgo.desktop",
-  "version": "0.4.0",
-  "build": 4,
+  "version": "0.5.0",
+  "build": 5,
   "nsh": ">=0.7.1, <0.8",
   "icon": "icon.png",
   "appearance": "system",

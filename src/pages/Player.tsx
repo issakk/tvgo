@@ -5,6 +5,7 @@ import { Button, NavPage } from "nsh/base";
 import { currentWindow } from "nsh/desktop";
 import { PageHeader } from "../components/PageHeader";
 import { isWebPageUrl, messageOf } from "../lib/http";
+import { spiderPlay } from "../lib/spider";
 import {
   cachedVodDetail,
   ensureVodDetail,
@@ -46,7 +47,9 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
   const line = computed(() => lines()[flagIndex()] ?? null);
   const episodes = computed(() => line()?.episodes ?? []);
   const episode = computed(() => episodes()[epIndex()] ?? null);
-  const url = computed(() => episode()?.url ?? "");
+  // A CMS site's episode already is the media URL; a spider's is an id the host resolves.
+  const resolved = signal("");
+  const url = computed(() => (site?.type === 3 ? resolved() : episode()?.url ?? ""));
   const needsBrowser = () => isWebPageUrl(url());
   const title = computed(() => detail()?.name ?? "");
 
@@ -73,6 +76,30 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
         if (mine === token) loading.set(false);
       }
     })();
+  });
+
+  effect(() => {
+    const current = episode();
+    const flag = line()?.flag ?? "";
+    if (!site || site.type !== 3) {
+      resolved.set("");
+      return;
+    }
+    resolved.set("");
+    if (!current) return;
+    let live = true;
+    void spiderPlay(site, flag, current.url)
+      .then((play) => {
+        if (!live) return;
+        if (play.parse !== 0) throw new Error("这个站点要解析器才能播，Windows 版目前只播直链");
+        resolved.set(play.url);
+      })
+      .catch((reason) => {
+        if (live) error.set(messageOf(reason));
+      });
+    cleanup(() => {
+      live = false;
+    });
   });
 
   const resumeTarget = () => {

@@ -24,7 +24,16 @@ export function parseConfigDocument(text: string, baseUrl: string): ConfigDoc {
     parses: readParses(root, baseUrl),
     flags: Array.isArray(root.flags) ? root.flags.map((flag) => String(flag)) : [],
     repos,
+    spider: readSpider(root, baseUrl),
   };
+}
+
+/** The jar the configuration's `csp_*` sites run, resolved against the configuration's URL. */
+function readSpider(root: Record<string, unknown>, baseUrl: string): string {
+  const raw = String(root.spider ?? "").trim();
+  if (!raw) return "";
+  // `…/spider.jar;md5;<hash>`: the hash only tells a client whether to re-download.
+  return resolveUrl(raw.split(";")[0], baseUrl);
 }
 
 const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
