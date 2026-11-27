@@ -93,6 +93,7 @@ export function cleanText(value: unknown): string {
     .replace(/&amp;/gi, "&")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
 
 /** Whether `url` is a web page the app shows in a web view rather than a media stream. */
 export function isWebPageUrl(url: string): boolean {
