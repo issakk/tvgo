@@ -99,4 +99,3 @@ export function cleanText(value: unknown): string {
 export function isWebPageUrl(url: string): boolean {
   return /\.(html?|php|shtml|jsp|aspx|do)(\?|#|$)/i.test(url) || /\/$/.test(url);
 }
-}
