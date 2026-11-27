@@ -15,7 +15,10 @@ Every build runs on GitHub Actions (`windows-latest`); nothing is compiled local
 - **Search.** One query sent to every searchable site, a few at a time, grouped by site with progress and per-site errors.
 - **Detail and playback.** Poster, metadata, synopsis, play lines (线路) and episodes. The player uses Windows'
   own Media Foundation decoder through NSH's `Video`, with a control bar, `1x`–`2x` rates, keyboard shortcuts and
-  full screen. Playlists (`.m3u8`) and progressive files play directly.
+  full screen. Playlists (`.m3u8`) and progressive files play directly; an episode that is a web page opens in the
+  app's own web view, with a button for the system browser.
+- **Switching sources (换源).** The detail page can search the other sites for the same title and reopen it there.
+- **Continue watching.** The discovery page lists the last titles with the episode and the site they came from.
 - **Live TV.** The configuration's live playlists, as TXT (`#genre#` groups) or M3U, with groups, channels and a player.
 - **Favorites and history.** Titles kept for later, and playback history that resumes at the episode and position
   where the user stopped.
@@ -30,8 +33,9 @@ Settings → 配置源 → paste a TVBox-compatible configuration URL (for examp
 `{"sites": [...], "lives": [...]}`) and press 添加配置. TVGo stores the parsed configuration in its own data
 directory (`%APPDATA%\dev.tvgo.desktop\storage.json`) and shows its CMS sites in 发现 and 搜索.
 
-Playback needs a URL the site serves directly (`.m3u8`, `.mp4`, …). Sites that return a web page and expect an
-external parser (解析) will load, but their episodes may not play.
+Episodes the site serves as a media URL play in the native player. An episode that is a web page opens in the
+built-in web view (WebView2), so a site's own player and its parse step can run there; the page can also be handed
+to the system browser.
 
 ## Building
 
@@ -78,13 +82,14 @@ network path reports loading, failure and retry, and stale responses are dropped
 
 ## Keyboard
 
-| Key | In the player |
-| --- | --- |
-| Space | play / pause |
-| ← / → | back / forward 10 s |
-| N / B | next / previous episode |
-| F | toggle full screen |
-| Esc | leave the player (the page's back) |
+| Key | Where | What it does |
+| --- | --- | --- |
+| Space | player | play / pause |
+| ← / → | player | back / forward 10 s |
+| N / B | player | next / previous episode |
+| F | player | toggle full screen |
+| Esc | anywhere | leave the player (the page's back) |
+| Ctrl+K | anywhere | open search |
 
 ## Notes
 

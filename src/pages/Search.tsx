@@ -36,7 +36,8 @@ export function Search() {
             value={draft()}
             onChange={(event) => draft.set(event.value)}
             onSubmit={submit}
-            placeholder="片名、演员、导演…"
+            placeholder="片名、演员、导演…（Ctrl+K 打开搜索）"
+            autoFocus
             class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
           />
           <AppButton

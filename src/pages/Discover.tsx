@@ -5,7 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { loadCategories, loadPage } from "../lib/cms";
 import { messageOf } from "../lib/http";
 import { goRoot, nav } from "../nav";
-import { configSites, currentSite, isReady, selectSite } from "../store";
+import { configSites, currentSite, historyEntries, isReady, selectSite } from "../store";
 import type { Category, VodItem } from "../types";
 import { AppButton, Busy, Chip, EmptyState, Failure, Poster } from "../ui/kit";
 
@@ -99,6 +99,20 @@ export function Discover() {
     </View>
   );
 
+  const recentHistory = () => historyEntries().slice(0, 4);
+
+  const resumeEntry = (entryId: string) => {
+    const entry = historyEntries().find((value) => value.id === entryId);
+    if (!entry) return;
+    nav.push({
+      name: "player",
+      siteKey: entry.siteKey,
+      vodId: entry.vod.id,
+      flagIndex: entry.flagIndex,
+      epIndex: entry.epIndex,
+    });
+  };
+
   return (
     <NavPage headerVisible={false}>
       <View class="flex-1">
@@ -126,6 +140,36 @@ export function Discover() {
             </Scroll>
           </View>
           <View class="flex-1">
+            <If when={recentHistory().length > 0 && !!currentSite()}>
+              <View class="gap-2 border-b border-border px-4 py-3">
+                <View class="flex-row items-center gap-2">
+                  <Text class="text-xs font-medium text-muted-foreground">继续观看</Text>
+                  <View class="flex-1" />
+                  <AppButton label="全部" size="sm" variant="ghost" onPress={() => goRoot("library")} />
+                </View>
+                <View class="flex-row flex-wrap gap-2">
+                  <Each of={recentHistory()} key={(entry) => entry.id}>
+                    {(entry) => (
+                      <Button
+                        onPress={() => resumeEntry(entry().id)}
+                        class="rounded-lg border border-border p-1.5 hover:bg-muted/50 active:opacity-75"
+                        style={{ width: 168, flexDirection: "row", alignItems: "center", gap: 8 }}
+                      >
+                        <View style={{ width: 32 }}>
+                          <Poster src={entry().vod.pic} />
+                        </View>
+                        <View class="flex-1 gap-0.5">
+                          <Text class="text-xs font-medium text-foreground truncate">{entry().vod.name}</Text>
+                          <Text class="text-xs text-muted-foreground truncate">
+                            {`${entry().epName} · ${entry().siteName}`}
+                          </Text>
+                        </View>
+                      </Button>
+                    )}
+                  </Each>
+                </View>
+              </View>
+            </If>
             <If when={!isReady()}>
               <Busy label="正在读取保存的配置…" />
             </If>

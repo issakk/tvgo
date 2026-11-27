@@ -1,9 +1,9 @@
 // The app shell: the sidebar, the navigation stack and the window.
-import { mount, View } from "nsh";
+import { ErrorBoundary, keymap, mount, Text, View } from "nsh";
 import { Window } from "nsh/desktop";
 import { NavStack } from "nsh/base";
 import { Sidebar } from "./src/components/Sidebar";
-import { nav, type Route } from "./src/nav";
+import { goRoot, nav, type Route } from "./src/nav";
 import { Detail } from "./src/pages/Detail";
 import { Discover } from "./src/pages/Discover";
 import { Library } from "./src/pages/Library";
@@ -42,13 +42,28 @@ function screen(route: Route): JSX.Element {
 }
 
 function App() {
+  keymap.bind("mod+k", () => goRoot("search"));
   return (
     <View class="flex-1 flex-row bg-background">
       <Sidebar />
       <View class="flex-1">
-        <NavStack state={nav} style={{ flex: 1 }}>
-          {(route) => screen(route)}
-        </NavStack>
+        <ErrorBoundary
+          fallback={(error, reset) => (
+            <View class="flex-1 items-center justify-center gap-3 p-8">
+              <Text class="text-base font-semibold text-destructive">这个页面出错了</Text>
+              <Text class="text-xs text-muted-foreground">
+                {error instanceof Error ? error.message : String(error)}
+              </Text>
+              <Text onPress={reset} class="text-sm text-primary">
+                重试
+              </Text>
+            </View>
+          )}
+        >
+          <NavStack state={nav} style={{ flex: 1 }}>
+            {(route) => screen(route)}
+          </NavStack>
+        </ErrorBoundary>
       </View>
     </View>
   );

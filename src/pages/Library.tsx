@@ -1,6 +1,6 @@
 // What the user kept: playback history to resume and titles kept for later.
 import { signal, List, Text, View } from "nsh";
-import { Button, NavPage } from "nsh/base";
+import { AlertDialog, Button, NavPage } from "nsh/base";
 import { PageHeader } from "../components/PageHeader";
 import { goRoot, nav } from "../nav";
 import {
@@ -14,6 +14,18 @@ import {
 import { AppButton, Chip, clock, EmptyState, Poster } from "../ui/kit";
 
 type Tab = "history" | "favorites";
+
+/** Asks before emptying a list the user cannot get back. */
+async function confirmClear(title: string, run: () => void): Promise<void> {
+  const result = await AlertDialog.show({
+    title,
+    actions: [
+      { id: "cancel", label: "取消", role: "cancel" },
+      { id: "ok", label: "清空", role: "destructive" },
+    ],
+  });
+  if (result.action === "ok") run();
+}
 
 export function Library() {
   const tab = signal<Tab>("history");
@@ -69,7 +81,7 @@ export function Library() {
             <View class="flex-row items-center gap-2 px-5 py-2">
               <Text class="text-xs text-muted-foreground">继续观看</Text>
               <View class="flex-1" />
-              <AppButton label="清空历史" size="sm" variant="outline" onPress={clearHistory} />
+              <AppButton label="清空历史" size="sm" variant="outline" onPress={() => void confirmClear("清空全部观看记录？", clearHistory)} />
             </View>
             <List
               each={historyEntries()}
@@ -112,7 +124,7 @@ export function Library() {
             <View class="flex-row items-center gap-2 px-5 py-2">
               <Text class="text-xs text-muted-foreground">收藏的内容</Text>
               <View class="flex-1" />
-              <AppButton label="清空收藏" size="sm" variant="outline" onPress={clearFavorites} />
+              <AppButton label="清空收藏" size="sm" variant="outline" onPress={() => void confirmClear("清空全部收藏？", clearFavorites)} />
             </View>
             <List
               each={favoriteEntries()}

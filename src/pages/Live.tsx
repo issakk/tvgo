@@ -1,6 +1,6 @@
 // Live TV: the configuration's playlists, their groups and channels, and the player.
 import { computed, effect, signal, List, Scroll, Text, Video, View } from "nsh";
-import { Button, NavPage } from "nsh/base";
+import { Button, Input, NavPage } from "nsh/base";
 import { PageHeader } from "../components/PageHeader";
 import { fetchText, messageOf } from "../lib/http";
 import { liveGroups, parseLiveChannels } from "../lib/live";
@@ -16,6 +16,7 @@ export function Live() {
   const loading = signal(false);
   const error = signal("");
   const group = signal("");
+  const query = signal("");
   const playing = signal<LiveChannel | null>(null);
   const revision = signal(0);
   let token = 0;
@@ -24,7 +25,12 @@ export function Live() {
   const groups = computed(() => liveGroups(channels()));
   const visible = computed(() => {
     const filter = group();
-    return filter === "" ? channels() : channels().filter((channel) => channel.group === filter);
+    const word = query().trim().toLowerCase();
+    return channels().filter(
+      (channel) =>
+        (filter === "" || channel.group === filter) &&
+        (word === "" || channel.name.toLowerCase().includes(word)),
+    );
   });
 
   effect(() => {
@@ -100,6 +106,14 @@ export function Live() {
                   </Each>
                 </View>
               </If>
+              <View class="border-b border-border p-2">
+                <Input
+                  value={query()}
+                  onChange={(event) => query.set(event.value)}
+                  placeholder="筛选频道"
+                  class="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
+                />
+              </View>
               <If when={loading() && channels().length === 0}>
                 <Busy label="正在读取直播列表…" />
               </If>

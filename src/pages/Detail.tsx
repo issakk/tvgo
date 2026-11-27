@@ -12,9 +12,11 @@ import {
   isFavorite,
   recordHistory,
   rememberVodDetail,
+  searchNameOnSites,
   toggleFavorite,
 } from "../store";
 import type { VodDetail } from "../types";
+import type { SearchGroup } from "../store";
 import { AppButton, Chip, clock, EmptyState, Failure, Poster } from "../ui/kit";
 
 export function Detail(props: { siteKey: string; vodId: string; vodName: string }) {
@@ -24,6 +26,8 @@ export function Detail(props: { siteKey: string; vodId: string; vodName: string 
   const error = signal("");
   const revision = signal(0);
   const flagIndex = signal(0);
+  const altGroups = signal<SearchGroup[]>([]);
+  const altBusy = signal(false);
   let token = 0;
 
   effect(() => {
@@ -110,6 +114,21 @@ export function Detail(props: { siteKey: string; vodId: string; vodName: string 
     toggleFavorite(props.siteKey, site.name, summary(value));
   };
 
+
+  const findSource = async () => {
+    const value = detail();
+    if (!value) return;
+    altBusy.set(true);
+    try {
+      altGroups.set(await searchNameOnSites(value.name, props.siteKey));
+    } finally {
+      altBusy.set(false);
+    }
+  };
+
+  const switchTo = (siteKey: string, vodId: string, vodName: string) => {
+    nav.replace({ name: "detail", siteKey, vodId, vodName });
+  };
   const metaRow = () => {
     const value = detail();
     if (!value) return "";
@@ -211,6 +230,42 @@ export function Detail(props: { siteKey: string; vodId: string; vodName: string 
                   </View>
                 </View>
               </If>
+              <View class="gap-2">
+                <View class="flex-row items-center gap-2">
+                  <Text class="text-sm font-semibold text-foreground">换源</Text>
+                  <Text class="text-xs text-muted-foreground">在其它站点搜索同名内容</Text>
+                  <View class="flex-1" />
+                  <AppButton
+                    label={altBusy() ? "搜索中…" : "搜索其它站点"}
+                    size="sm"
+                    disabled={altBusy() || !detail()}
+                    onPress={() => void findSource()}
+                  />
+                </View>
+                <If when={altGroups().length > 0}>
+                  <View class="gap-3">
+                    <Each of={altGroups()} key={(group) => group.siteKey}>
+                      {(group) => (
+                        <View class="gap-1.5">
+                          <Text class="text-xs text-muted-foreground">{group().siteName}</Text>
+                          <View class="flex-row flex-wrap gap-2">
+                            <Each of={group().items} key={(item) => item.id}>
+                              {(item) => (
+                                <Button
+                                  onPress={() => switchTo(group().siteKey, item().id, item().name)}
+                                  class="rounded-md bg-muted px-3 py-1.5 hover:bg-muted/70 active:opacity-70"
+                                >
+                                  <Text class="text-xs text-foreground">{item().name}</Text>
+                                </Button>
+                              )}
+                            </Each>
+                          </View>
+                        </View>
+                      )}
+                    </Each>
+                  </View>
+                </If>
+              </View>
             </View>
           </Scroll>
         </If>

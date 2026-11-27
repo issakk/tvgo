@@ -344,6 +344,22 @@ export async function searchAll(keyword: string): Promise<void> {
   searchState.set({ keyword: word, groups: found, busy: false, done: sites.length, total: sites.length, error: "" });
 }
 
+/** Searches the other sites for a title the detail page is showing, for 换源. */
+export async function searchNameOnSites(name: string, excludeKey: string): Promise<SearchGroup[]> {
+  const word = name.trim();
+  if (!word) return [];
+  const sites = configSites().filter((site) => site.searchable !== 0 && site.key !== excludeKey);
+  const groups = await mapLimit(sites, 6, async (site): Promise<SearchGroup> => {
+    try {
+      const items = await searchSite(site, word);
+      return { siteKey: site.key, siteName: site.name, items: items.slice(0, 12), error: "" };
+    } catch (error) {
+      return { siteKey: site.key, siteName: site.name, items: [], error: messageOf(error) };
+    }
+  });
+  return groups.filter((group) => group.items.length > 0);
+}
+
 /** Records where the user is in a title: the newest entry for it moves to the front. */
 export function recordHistory(entry: Omit<HistoryEntry, "id" | "updatedAt">): void {
   const id = vodKey(entry.siteKey, entry.vod.id);
