@@ -301,6 +301,9 @@ export async function refreshConfig(id: string): Promise<void> {
     );
     configs.set(next);
     persist(CONFIGS_KEY, next);
+    // The refreshed document may name a different spider jar, or name one for the first time.
+    syncSpider();
+    void checkSpider();
   } catch (error) {
     configError.set(messageOf(error));
   } finally {
