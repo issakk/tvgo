@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "build": 1,
   "nsh": ">=0.7.1, <0.8",
+  "icon": "icon.png",
   "appearance": "system",
   "window": {
     "title": "TVGo",
     "defaultSize": { "width": 1280, "height": 840 },
-    "minSize": { "width": 980, "height": 620 }
+    "minSize": { "width": 980, "height": 620 },
+    "restoreBounds": true
   }
 }

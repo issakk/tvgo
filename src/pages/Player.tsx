@@ -1,10 +1,10 @@
 // Playback: the video, its lines and episodes, keyboard control and where to resume.
-import { cleanup, computed, effect, keymap, List, signal, Text, Video, View } from "nsh";
+import { cleanup, computed, effect, keymap, List, openUrl, signal, Text, Video, View, WebView } from "nsh";
 import type { VideoRef } from "nsh";
 import { Button, NavPage } from "nsh/base";
 import { currentWindow } from "nsh/desktop";
 import { PageHeader } from "../components/PageHeader";
-import { messageOf } from "../lib/http";
+import { isWebPageUrl, messageOf } from "../lib/http";
 import {
   cachedVodDetail,
   ensureVodDetail,
@@ -46,6 +46,7 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
   const episodes = computed(() => line()?.episodes ?? []);
   const episode = computed(() => episodes()[epIndex()] ?? null);
   const url = computed(() => episode()?.url ?? "");
+  const needsBrowser = () => isWebPageUrl(url());
   const title = computed(() => detail()?.name ?? "");
 
   effect(() => {
@@ -92,7 +93,7 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
   const seekBy = (delta: number) => {
     const target = Math.max(0, position() + delta);
     position.set(target);
-    video.seek(target);
+    if (video) video.seek(target);
   };
 
   const toggleFullscreen = () => {
@@ -195,7 +196,17 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
           <View class="flex-1 flex-row">
             <View class="flex-1">
               <View class="flex-1" style={{ backgroundColor: "#000000" }}>
-                <If when={url() !== ""}>
+                <If when={url() !== "" && needsBrowser()}>
+                  <View class="flex-1">
+                    <View class="flex-row items-center gap-2 border-b border-border bg-background px-3 py-2">
+                      <Text class="text-xs text-muted-foreground">这一集是网页地址，使用内置浏览器打开。</Text>
+                      <View class="flex-1" />
+                      <AppButton label="用系统浏览器打开" size="sm" onPress={() => void openUrl(url())} />
+                    </View>
+                    <WebView src={url()} style={{ flex: 1 }} />
+                  </View>
+                </If>
+                <If when={url() !== "" && !needsBrowser()}>
                   <Video
                     ref={video}
                     src={url()}
@@ -208,7 +219,7 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
                       const target = resumeTarget();
                       if (target > 0 && !resumed) {
                         resumed = true;
-                        video.seek(target);
+                        if (video) video.seek(target);
                       }
                     }}
                     onProgress={(event) => {
