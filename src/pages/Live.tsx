@@ -78,6 +78,15 @@ export function Live() {
     if (!current) return "配置里没有直播源";
     return `${current.name} · ${visible().length} 个频道`;
   };
+  const moveChannel = (delta: number) => {
+    const list = visible();
+    if (list.length === 0) return;
+    const current = playing();
+    const index = current ? list.findIndex((channel) => channel.id === current.id) : -1;
+    const next = index < 0 ? 0 : (index + delta + list.length) % list.length;
+    playing.set(list[next]);
+  };
+
 
   return (
     <NavPage headerVisible={false}>
@@ -160,6 +169,9 @@ export function Live() {
                   {playing()?.name ?? "选择一个频道"}
                 </Text>
                 <Text class="text-xs text-muted-foreground truncate">{playing()?.group ?? ""}</Text>
+                <View class="flex-1" />
+                <AppButton label="上一个" size="sm" onPress={() => moveChannel(-1)} disabled={visible().length === 0} />
+                <AppButton label="下一个" size="sm" onPress={() => moveChannel(1)} disabled={visible().length === 0} />
               </View>
               <View class="flex-1" style={{ backgroundColor: "#000000" }}>
                 <If when={!!playing()}>

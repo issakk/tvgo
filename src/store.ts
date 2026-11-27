@@ -11,6 +11,7 @@ const SETTINGS_KEY = "tvgo/settings";
 const CONFIGS_KEY = "tvgo/configs";
 const HISTORY_KEY = "tvgo/history";
 const FAVORITES_KEY = "tvgo/favorites";
+const SEARCHES_KEY = "tvgo/searches";
 
 /** A configuration the user added, with what it named when it was read. */
 export interface ConfigSource {
@@ -80,6 +81,7 @@ const configs = signal<ConfigSource[]>([]);
 const settings = signal<Settings>({ ...DEFAULT_SETTINGS });
 const history = signal<HistoryEntry[]>([]);
 const favorites = signal<FavoriteEntry[]>([]);
+const searches = signal<string[]>([]);
 const ready = signal(false);
 const configBusy = signal(false);
 const configError = signal("");
@@ -97,16 +99,18 @@ void hydrate();
 export async function hydrate(): Promise<void> {
   if (ready()) return;
   try {
-    const [rawSettings, rawConfigs, rawHistory, rawFavorites] = await Promise.all([
+    const [rawSettings, rawConfigs, rawHistory, rawFavorites, rawSearches] = await Promise.all([
       Storage.getItem(SETTINGS_KEY),
       Storage.getItem(CONFIGS_KEY),
       Storage.getItem(HISTORY_KEY),
       Storage.getItem(FAVORITES_KEY),
+      Storage.getItem(SEARCHES_KEY),
     ]);
     configs.set(readConfigs(rawConfigs));
     settings.set(readSettings(rawSettings));
     history.set(readHistory(rawHistory));
     favorites.set(readFavorites(rawFavorites));
+    searches.set(readStrings(rawSearches));
     setColorScheme(settings().theme);
   } catch (error) {
     console.warn("TVGo: could not read the saved state", error);
@@ -167,6 +171,24 @@ export const isConfigBusy = () => configBusy();
 /** Why the last configuration change failed. */
 export const configFailure = () => configError();
 
+
+/** The words searched before, newest first. */
+export const recentSearches = () => searches();
+
+/** Keeps a word in the search history, newest first. */
+export function rememberSearch(word: string): void {
+  const value = word.trim();
+  if (!value) return;
+  const next = [value, ...searches().filter((item) => item !== value)].slice(0, 12);
+  searches.set(next);
+  persist(SEARCHES_KEY, next);
+}
+
+/** Empties the search history. */
+export function clearSearches(): void {
+  searches.set([]);
+  persist(SEARCHES_KEY, []);
+}
 /** Playback history, newest first. */
 export const historyEntries = () => history();
 
@@ -316,6 +338,7 @@ export function rememberVodDetail(detail: VodDetail, siteKey: string): void {
 export async function searchAll(keyword: string): Promise<void> {
   const word = keyword.trim();
   if (!word) return;
+  rememberSearch(word);
   const sites = configSites().filter((site) => site.searchable !== 0);
   const mine = (searchToken += 1);
   searchState.set({ keyword: word, groups: [], busy: sites.length > 0, done: 0, total: sites.length, error: "" });
@@ -436,11 +459,13 @@ export function clearAllData(): void {
   configs.set([]);
   history.set([]);
   favorites.set([]);
+  searches.set([]);
   settings.set({ ...DEFAULT_SETTINGS });
   vodCache.clear();
   persist(CONFIGS_KEY, []);
   persist(HISTORY_KEY, []);
   persist(FAVORITES_KEY, []);
+  persist(SEARCHES_KEY, []);
   persist(SETTINGS_KEY, settings());
   setColorScheme("system");
 }
@@ -551,6 +576,12 @@ function readFavorites(raw: string | null): FavoriteEntry[] {
   return value
     .filter((item) => item && typeof item === "object" && (item as FavoriteEntry).id)
     .map((item) => item as FavoriteEntry);
+}
+
+function readStrings(raw: string | null): string[] {
+  const value = readJson(raw);
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => typeof item === "string").map((item) => item as string);
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {

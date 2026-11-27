@@ -12,14 +12,16 @@ Every build runs on GitHub Actions (`windows-latest`); nothing is compiled local
   switch between them, refresh them, and turn individual sites on or off.
 - **Sites.** JSON CMS (`ac=list` / `ac=detail` / `ac=videolist`, with the `videolist` fallback older servers need)
   and the legacy XML CMS protocol. Sites are grouped by category, browsed as a poster grid and paged while scrolling.
-- **Search.** One query sent to every searchable site, a few at a time, grouped by site with progress and per-site errors.
+- **Search.** One query sent to every searchable site, a few at a time, grouped by site with progress and per-site
+  errors, with the words searched before kept for one click.
 - **Detail and playback.** Poster, metadata, synopsis, play lines (线路) and episodes. The player uses Windows'
   own Media Foundation decoder through NSH's `Video`, with a control bar, `1x`–`2x` rates, keyboard shortcuts and
   full screen. Playlists (`.m3u8`) and progressive files play directly; an episode that is a web page opens in the
   app's own web view, with a button for the system browser.
 - **Switching sources (换源).** The detail page can search the other sites for the same title and reopen it there.
 - **Continue watching.** The discovery page lists the last titles with the episode and the site they came from.
-- **Live TV.** The configuration's live playlists, as TXT (`#genre#` groups) or M3U, with groups, channels and a player.
+- **Live TV.** The configuration's live playlists, as TXT (`#genre#` groups) or M3U, with groups, a channel filter,
+  previous/next channel and a player.
 - **Favorites and history.** Titles kept for later, and playback history that resumes at the episode and position
   where the user stopped.
 - **Appearance.** Light, dark or system, from NSH's theme tokens.
@@ -48,6 +50,10 @@ GitHub Actions builds, tests and packages the app:
   nsh test      headless tests
   nsh package --target windows
 ```
+
+`nsh test` runs the data layer's tests (configuration, play lines, playlists), a pass over every page of the shell,
+and an end-to-end run against a stubbed site: browse a category, open a title, play an episode, find it in history,
+then load a live playlist.
 
 The packaged app lands in `.nsh/out/`:
 
@@ -88,6 +94,7 @@ network path reports loading, failure and retry, and stale responses are dropped
 | ← / → | player | back / forward 10 s |
 | N / B | player | next / previous episode |
 | F | player | toggle full screen |
+| M | player | mute / unmute |
 | Esc | anywhere | leave the player (the page's back) |
 | Ctrl+K | anywhere | open search |
 

@@ -99,6 +99,7 @@ export function Discover() {
     </View>
   );
 
+
   const recentHistory = () => historyEntries().slice(0, 4);
 
   const resumeEntry = (entryId: string) => {
@@ -174,17 +175,21 @@ export function Discover() {
               <Busy label="正在读取保存的配置…" />
             </If>
             <If when={isReady() && !currentSite()}>
-              <EmptyState
-                title="还没有可浏览的站点"
-                detail={
-                  configSites().length === 0 && isReady()
-                    ? "在设置里添加一个 TVBox 兼容的配置地址，就能开始浏览。"
-                    : "这个配置里没有可用的 CMS 站点。"
-                }
-                action={
-                  <AppButton label="打开设置" variant="primary" onPress={() => goRoot("settings")} />
-                }
-              />
+              <If when={configSites().length === 0}>
+                <EmptyState
+                  title="还没有可浏览的站点"
+                  detail="在设置里添加一个 TVBox 兼容的配置地址，就能开始浏览。"
+                  action={
+                    <AppButton label="打开设置" variant="primary" onPress={() => goRoot("settings")} />
+                  }
+                />
+              </If>
+              <If when={configSites().length > 0}>
+                <EmptyState
+                  title="这个配置没有可用站点"
+                  detail="站点需要 Spider 或外部应用，Windows 版暂不支持。"
+                />
+              </If>
             </If>
             <If when={!!currentSite()}>
               <View class="flex-row flex-wrap gap-2 border-b border-border px-4 py-2">

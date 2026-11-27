@@ -42,7 +42,22 @@ test("reads an M3U live playlist", () => {
 });
 
 test("opens the shell", async () => {
-  const app = await open("./App.tsx");
+  const app = await open("./App.tsx", { width: 1280, height: 840 });
   await app.waitFor("设置");
   expect(app.shows("TVGo")).toBe(true);
+});
+
+test("moves between the shell's pages", async () => {
+  const app = await open("./App.tsx", { width: 1280, height: 840 });
+  await app.press("搜索 >> nth=0");
+  await app.waitFor("搜索全网站点");
+  await app.press("直播");
+  await app.waitFor("没有直播源");
+  await app.press("收藏与历史");
+  await app.waitFor("还没有观看记录");
+  await app.press("设置");
+  await app.waitFor("配置源");
+  await app.press("发现");
+  await app.waitFor("还没有可浏览的站点");
+  expect(app.shows("打开设置")).toBe(true);
 });

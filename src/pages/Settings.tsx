@@ -1,8 +1,7 @@
 // Settings: configuration sources, the sites they name, appearance, data and about.
-import { appInfo, openUrl, Scroll, Text, View } from "nsh";
+import { appInfo, openUrl, Scroll, signal, Text, View } from "nsh";
 import { AlertDialog, Button, NavPage } from "nsh/base";
 import { PageHeader } from "../components/PageHeader";
-import { signal } from "nsh";
 import {
   activeConfig,
   allConfigs,

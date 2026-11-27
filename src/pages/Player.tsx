@@ -34,6 +34,7 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
   const duration = signal(0);
   const buffering = signal(false);
   const fullscreen = signal(false);
+  const muted = signal(false);
   const win = currentWindow();
   const saved = historyFor(props.siteKey, props.vodId);
   let video!: VideoRef;
@@ -96,12 +97,20 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
     if (video) video.seek(target);
   };
 
+  // A surface without a window (a test, a browser) has no modes to set.
+  const setWindowMode = (mode: "normal" | "fullScreen") => {
+    try {
+      win.setMode(mode);
+    } catch {
+      // The surface has no window modes; the player still plays.
+    }
+  };
+
   const toggleFullscreen = () => {
     const next = !fullscreen();
     fullscreen.set(next);
-    win.setMode(next ? "fullScreen" : "normal");
+    setWindowMode(next ? "fullScreen" : "normal");
   };
-
   const playEpisode = (nextFlag: number, nextEpisode: number) => {
     const value = detail();
     const selected = value?.lines[nextFlag]?.episodes[nextEpisode];
@@ -161,10 +170,11 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
   keymap.bind("f", toggleFullscreen);
   keymap.bind("n", nextEpisode);
   keymap.bind("b", previousEpisode);
+  keymap.bind("m", () => muted.update((value) => !value));
 
   cleanup(() => {
     save(true);
-    win.setMode("normal");
+    setWindowMode("normal");
   });
 
   const detailLine = () => {
@@ -212,6 +222,7 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
                     src={url()}
                     paused={paused()}
                     rate={rate()}
+                    muted={muted()}
                     controls
                     style={{ flex: 1 }}
                     onLoad={(event) => {
@@ -236,21 +247,28 @@ export function Player(props: { siteKey: string; vodId: string; flagIndex: numbe
                   <EmptyState title="这个分类没有播放地址" detail="换一条线路或另一集试试。" />
                 </If>
               </View>
-              <View class="flex-row items-center gap-2 border-t border-border bg-background px-3 py-2">
-                <AppButton label={paused() ? "播放" : "暂停"} size="sm" variant="primary" onPress={togglePause} />
-                <AppButton label="-10s" size="sm" onPress={() => seekBy(-10)} />
-                <AppButton label="+10s" size="sm" onPress={() => seekBy(10)} />
-                <Text class="text-xs text-muted-foreground">
-                  {`${clock(position())} / ${clock(duration())}`}
-                </Text>
-                <View class="flex-1" />
-                <Each of={RATES} key={(value) => String(value)}>
-                  {(value) => (
-                    <Chip label={`${value()}x`} selected={rate() === value()} onPress={() => rate.set(value())} />
-                  )}
-                </Each>
-                <AppButton label={fullscreen() ? "退出全屏" : "全屏"} size="sm" onPress={toggleFullscreen} />
-              </View>
+              <If when={!needsBrowser()}>
+                <View class="flex-row items-center gap-2 border-t border-border bg-background px-3 py-2">
+                  <AppButton label={paused() ? "播放" : "暂停"} size="sm" variant="primary" onPress={togglePause} />
+                  <AppButton label="-10s" size="sm" onPress={() => seekBy(-10)} />
+                  <AppButton label="+10s" size="sm" onPress={() => seekBy(10)} />
+                  <AppButton
+                    label={muted() ? "取消静音" : "静音"}
+                    size="sm"
+                    onPress={() => muted.update((value) => !value)}
+                  />
+                  <Text class="text-xs text-muted-foreground">
+                    {`${clock(position())} / ${clock(duration())}`}
+                  </Text>
+                  <View class="flex-1" />
+                  <Each of={RATES} key={(value) => String(value)}>
+                    {(value) => (
+                      <Chip label={`${value()}x`} selected={rate() === value()} onPress={() => rate.set(value())} />
+                    )}
+                  </Each>
+                  <AppButton label={fullscreen() ? "退出全屏" : "全屏"} size="sm" onPress={toggleFullscreen} />
+                </View>
+              </If>
             </View>
             <View class="w-72 border-l border-border">
               <View class="gap-1.5 p-3">

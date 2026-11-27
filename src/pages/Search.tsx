@@ -3,9 +3,9 @@ import { signal, Scroll, Text, View } from "nsh";
 import { Button, Input, NavPage } from "nsh/base";
 import { PageHeader } from "../components/PageHeader";
 import { nav } from "../nav";
-import { configSites, searchAll, searchResults } from "../store";
+import { clearSearches, configSites, recentSearches, searchAll, searchResults } from "../store";
 import type { VodItem } from "../types";
-import { AppButton, Busy, EmptyState, Poster } from "../ui/kit";
+import { AppButton, Busy, Chip, EmptyState, Poster } from "../ui/kit";
 
 export function Search() {
   const draft = signal(searchResults().keyword);
@@ -57,6 +57,28 @@ export function Search() {
           <EmptyState title="没有找到结果" detail={`“${state().keyword}”在这些站点里都没有结果。`} />
         </If>
         <If when={state().keyword === ""}>
+          <If when={recentSearches().length > 0}>
+            <View class="gap-2 px-5 pb-2">
+              <View class="flex-row items-center gap-2">
+                <Text class="text-xs font-medium text-muted-foreground">最近搜索</Text>
+                <View class="flex-1" />
+                <AppButton label="清除" size="sm" variant="ghost" onPress={clearSearches} />
+              </View>
+              <View class="flex-row flex-wrap gap-2">
+                <Each of={recentSearches()} key={(word) => word}>
+                  {(word) => (
+                    <Chip
+                      label={word()}
+                      onPress={() => {
+                        draft.set(word());
+                        submit();
+                      }}
+                    />
+                  )}
+                </Each>
+              </View>
+            </View>
+          </If>
           <EmptyState title="搜索全网站点" detail="输入片名，TVGo 会同时查询当前配置里支持的站点。" />
         </If>
         <If when={state().groups.length > 0}>
