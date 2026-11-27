@@ -26,6 +26,12 @@ export interface ParseSource {
   url: string;
 }
 
+/** A configuration a multi-repo ("多仓") document lists. */
+export interface ConfigRepo {
+  name: string;
+  url: string;
+}
+
 /** A parsed TVBox-compatible configuration document. */
 export interface ConfigDoc {
   name: string;
@@ -33,6 +39,8 @@ export interface ConfigDoc {
   lives: LiveSource[];
   parses: ParseSource[];
   flags: string[];
+  /** The configurations a multi-repo document lists; empty for a normal one. */
+  repos: ConfigRepo[];
 }
 
 /** One title in a site's list. */

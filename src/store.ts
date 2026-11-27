@@ -215,7 +215,7 @@ export function isSupportedSite(site: SiteConfig | null): boolean {
   return site !== null && (site.type === 0 || site.type === 1);
 }
 
-/** Adds a configuration from a URL and makes it the active one. */
+/** Adds a configuration from a URL and makes it the active one; a multi-repo adds its repositories. */
 export async function importConfig(url: string): Promise<void> {
   const target = url.trim();
   if (!target) return;
@@ -224,7 +224,7 @@ export async function importConfig(url: string): Promise<void> {
   try {
     const text = await fetchText(target, 20000);
     const doc = parseConfigDocument(text, target);
-    storeConfig(doc, target);
+    commitSources(await readSources(doc, target));
   } catch (error) {
     configError.set(messageOf(error));
   } finally {
@@ -239,9 +239,10 @@ export async function importConfigText(text: string, name: string): Promise<void
   configBusy.set(true);
   configError.set("");
   try {
+    const label = name.trim();
     const doc = parseConfigDocument(value, "");
-    if (!doc.name && name.trim()) doc.name = name.trim();
-    storeConfig(doc, "");
+    if (!doc.name && label) doc.name = label;
+    commitSources(await readSources(doc, "", label || doc.name));
   } catch (error) {
     configError.set(messageOf(error));
   } finally {
@@ -478,21 +479,59 @@ export function vodKey(siteKey: string, vodId: string): string {
 // Reading and writing what the app keeps.
 
 
-function storeConfig(doc: ConfigDoc, url: string): void {
-  const id = hashId(url || `${doc.name}|${doc.sites.length}|${doc.sites[0]?.api ?? ""}`);
-  const source: ConfigSource = {
-    id,
-    name: doc.name || doc.sites[0]?.name || "配置",
+/** The source a parsed document is stored as. */
+function makeSource(doc: ConfigDoc, url: string, name?: string): ConfigSource {
+  return {
+    id: hashId(url || `${doc.name}|${doc.sites.length}|${doc.sites[0]?.api ?? ""}`),
+    name: (name ?? doc.name) || doc.sites[0]?.name || "配置",
     url,
     updatedAt: Date.now(),
     config: doc,
   };
-  const existing = configs().find((item) => item.id === id);
-  const next = existing ? configs().map((item) => (item.id === id ? source : item)) : [...configs(), source];
+}
+
+/** Every source, with `added` replacing the ones of the same id. */
+function mergeSources(existing: ConfigSource[], added: ConfigSource[]): ConfigSource[] {
+  const result = [...existing];
+  for (const source of added) {
+    const index = result.findIndex((item) => item.id === source.id);
+    if (index >= 0) result[index] = source;
+    else result.push(source);
+  }
+  return result;
+}
+
+/**
+ * The sources a document gives: itself when it names sites, otherwise the
+ * configurations its repositories list ("多仓"), read one level down.
+ */
+async function readSources(doc: ConfigDoc, url: string, name?: string, depth = 0): Promise<ConfigSource[]> {
+  if (doc.sites.length > 0) return [makeSource(doc, url, name)];
+  if (depth >= 1) return [];
+  const sources: ConfigSource[] = [];
+  for (const repo of doc.repos.slice(0, 12)) {
+    try {
+      const text = await fetchText(repo.url, 20000);
+      const child = parseConfigDocument(text, repo.url);
+      sources.push(...(await readSources(child, repo.url, repo.name || undefined, depth + 1)));
+    } catch {
+      // One repository failing leaves the others.
+    }
+  }
+  if (sources.length === 0) throw new Error("多仓配置里没有可用的子配置");
+  return sources;
+}
+
+/** Stores the imported sources and makes the first one with a supported site active. */
+function commitSources(sources: ConfigSource[]): void {
+  const next = mergeSources(configs(), sources);
   configs.set(next);
   persist(CONFIGS_KEY, next);
-  const site = doc.sites.find((item) => (item.type === 0 || item.type === 1) && item.hide === 0);
-  patchSettings({ activeConfigId: id, siteKey: site?.key ?? "" });
+  const supported = (source: ConfigSource) =>
+    source.config.sites.some((site) => (site.type === 0 || site.type === 1) && site.hide === 0);
+  const active = sources.find(supported) ?? sources[0];
+  const site = active.config.sites.find((item) => (item.type === 0 || item.type === 1) && item.hide === 0);
+  patchSettings({ activeConfigId: active.id, siteKey: site?.key ?? "" });
 }
 
 function patchSettings(patch: Partial<Settings>): void {
@@ -550,6 +589,7 @@ function readConfigs(raw: string | null): ConfigSource[] {
         lives: Array.isArray(config.lives) ? config.lives : [],
         parses: Array.isArray(config.parses) ? config.parses : [],
         flags: Array.isArray(config.flags) ? config.flags : [],
+        repos: Array.isArray(config.repos) ? config.repos : [],
       },
     });
   }

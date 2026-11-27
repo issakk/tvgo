@@ -8,8 +8,10 @@ Every build runs on GitHub Actions (`windows-latest`); nothing is compiled local
 
 ## Features
 
-- **Configuration sources.** Add TVBox-compatible JSON configurations by URL or paste the JSON. Keep several,
-  switch between them, refresh them, and turn individual sites on or off.
+- **Configuration sources.** Add TVBox-compatible configurations by URL or paste the JSON: plain JSON, base64 JSON
+  (with or without the `YmFzZTY0**` marker some servers put in front, base64url, line breaks, `data:` prefixes,
+  URL-encoded payloads) and multi-repo documents (`{"urls":[…]}`), whose repositories are imported as their own
+  configurations. Keep several, switch between them, refresh them, and turn individual sites on or off.
 - **Sites.** JSON CMS (`ac=list` / `ac=detail` / `ac=videolist`, with the `videolist` fallback older servers need)
   and the legacy XML CMS protocol. Sites are grouped by category, browsed as a poster grid and paged while scrolling.
 - **Search.** One query sent to every searchable site, a few at a time, grouped by site with progress and per-site
@@ -28,12 +30,15 @@ Every build runs on GitHub Actions (`windows-latest`); nothing is compiled local
 
 Not supported yet: CSP Spider sites (`api: csp_*`) and external-app sites (`type: 4`) need a JavaScript spider
 runtime or the external app; they are listed in Settings, marked as unsupported, and left out of browsing and search.
+Many shared configurations (for example `https://8815.kstore.vip/tvbox/wmz`) are entirely Spider sites: such a
+configuration imports, shows its live playlists, and explains on the discovery page that its sites need a spider.
 
 ## Using a configuration
 
-Settings → 配置源 → paste a TVBox-compatible configuration URL (for example a `tvbox.json` that lists
-`{"sites": [...], "lives": [...]}`) and press 添加配置. TVGo stores the parsed configuration in its own data
-directory (`%APPDATA%\dev.tvgo.desktop\storage.json`) and shows its CMS sites in 发现 and 搜索.
+Settings → 配置源 → paste a TVBox-compatible configuration URL (plain JSON, a base64 document such as
+`https://8815.kstore.vip/tvbox/wmz`, or a multi-repo `{"urls":[…]}` document) and press 添加配置. TVGo decodes it,
+stores the parsed configuration in its own data directory (`%APPDATA%\dev.tvgo.desktop\storage.json`) and shows its
+CMS sites in 发现 and 搜索; the repositories of a multi-repo document become configurations of their own.
 
 Episodes the site serves as a media URL play in the native player. An episode that is a web page opens in the
 built-in web view (WebView2), so a site's own player and its parse step can run there; the page can also be handed

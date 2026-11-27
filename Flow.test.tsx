@@ -103,3 +103,28 @@ test("browses a site, opens a title and plays it", async () => {
   await app.waitFor("CCTV1");
   expect(app.shows("全部")).toBe(true);
 });
+
+/** A config as the servers behind `wmz` send it: base64 after a `YmFzZTY0**` marker. */
+const B64_MARKER = "YmFzZTY0";
+const B64_CONFIG =
+  "eyJuYW1lIjoi5a+85YWl6YWN572uIiwic2l0ZXMiOlt7ImtleSI6ImRlbW8tc2l0ZSIsIm5hbWUiOiLmvJTnpLrnq5kiLCJ0eXBlIjoxLCJhcGkiOiJodHRwczovL2RlbW8uZXhhbXBsZS9hcGkucGhwL3Byb3ZpZGUvdm9kLyJ9XSwibGl2ZXMiOltdfQ==";
+
+test("imports a base64 configuration from settings", async () => {
+  const app = await open("./App.tsx", {
+    width: 1280,
+    height: 840,
+    network: {
+      "GET https://demo.example/wmz": { body: `\n${B64_MARKER}**${B64_CONFIG}` },
+      "GET https://demo.example/api.php/provide/vod/*": cms,
+    },
+  });
+  await app.press("设置");
+  await app.waitFor("配置源");
+  await app.type("id:config-url", "https://demo.example/wmz");
+  await app.press("添加配置");
+  // The imported configuration, named by the document inside the base64 payload.
+  await app.waitFor("导入配置");
+  await app.press("发现");
+  await app.waitFor("测试影片");
+  expect(app.shows("演示站")).toBe(true);
+});

@@ -157,6 +157,7 @@ export function Field(props: {
   onSubmit?: () => void;
   multiline?: boolean;
   class?: string;
+  testID?: string;
 }) {
   return (
     <View class={`gap-1.5 ${props.class ?? ""}`}>
@@ -167,6 +168,7 @@ export function Field(props: {
         onSubmit={() => props.onSubmit?.()}
         placeholder={props.placeholder}
         multiline={props.multiline}
+        testID={props.testID}
         class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
       />
     </View>

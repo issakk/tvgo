@@ -5,7 +5,7 @@ import { PageHeader } from "../components/PageHeader";
 import { loadCategories, loadPage } from "../lib/cms";
 import { messageOf } from "../lib/http";
 import { goRoot, nav } from "../nav";
-import { configSites, currentSite, historyEntries, isReady, selectSite } from "../store";
+import { activeConfig, configSites, currentSite, documentSites, historyEntries, isReady, selectSite } from "../store";
 import type { Category, VodItem } from "../types";
 import { AppButton, Busy, Chip, EmptyState, Failure, Poster } from "../ui/kit";
 
@@ -100,6 +100,14 @@ export function Discover() {
   );
 
 
+  // Why a configuration with sites shows none: Spider sites, or the CMS ones turned off.
+  const emptyReason = () => {
+    const sites = documentSites();
+    const cms = sites.filter((site) => site.type === 0 || site.type === 1).length;
+    if (cms > 0) return "这个配置的 CMS 站点都在配置里隐藏了或在这里停用了，去设置里打开它们。";
+    if (sites.length === 0) return "这个配置没有声明任何站点。";
+    return `配置里的 ${sites.length} 个站点都需要 Spider 或外部应用，Windows 版暂不支持；直播源仍然可用。`;
+  };
   const recentHistory = () => historyEntries().slice(0, 4);
 
   const resumeEntry = (entryId: string) => {
@@ -175,7 +183,7 @@ export function Discover() {
               <Busy label="正在读取保存的配置…" />
             </If>
             <If when={isReady() && !currentSite()}>
-              <If when={configSites().length === 0}>
+              <If when={!activeConfig()}>
                 <EmptyState
                   title="还没有可浏览的站点"
                   detail="在设置里添加一个 TVBox 兼容的配置地址，就能开始浏览。"
@@ -184,10 +192,13 @@ export function Discover() {
                   }
                 />
               </If>
-              <If when={configSites().length > 0}>
+              <If when={!!activeConfig()}>
                 <EmptyState
-                  title="这个配置没有可用站点"
-                  detail="站点需要 Spider 或外部应用，Windows 版暂不支持。"
+                  title="这个配置没有可播放的站点"
+                  detail={emptyReason()}
+                  action={
+                    <AppButton label="查看站点" variant="primary" onPress={() => goRoot("settings")} />
+                  }
                 />
               </If>
             </If>

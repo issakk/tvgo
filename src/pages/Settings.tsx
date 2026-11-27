@@ -112,6 +112,7 @@ export function Settings() {
                   onChange={(value) => url.set(value)}
                   onSubmit={submitUrl}
                   placeholder="https://example.com/tvbox.json"
+                  testID="config-url"
                 />
                 <View class="flex-row items-center gap-2">
                   <AppButton
@@ -135,9 +136,10 @@ export function Settings() {
                   onChange={(value) => pasted.set(value)}
                   placeholder='{"sites":[…] }'
                   multiline
+                  testID="config-text"
                 />
                 <View class="flex-row items-center gap-2">
-                  <Field label="名称（可选）" value={pastedName()} onChange={(value) => pastedName.set(value)} />
+                  <Field label="名称（可选）" value={pastedName()} onChange={(value) => pastedName.set(value)} testID="config-name" />
                   <AppButton
                     label="导入粘贴的配置"
                     disabled={isConfigBusy() || !pasted().trim()}
