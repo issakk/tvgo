@@ -25,6 +25,7 @@ import {
   setTheme,
   siteEnabled,
 } from "../store";
+import { spiderLog } from "../lib/spider";
 import type { SiteConfig } from "../types";
 import { AppButton, Chip, Field, Section } from "../ui/kit";
 
@@ -55,6 +56,8 @@ export function Settings() {
   const spiderInput = signal(spiderAddress());
   const checking = signal(false);
   const checked = signal(false);
+  const logText = signal("");
+  const logBusy = signal(false);
   const pasted = signal("");
   const pastedName = signal("");
   const info = appInfo();
@@ -115,6 +118,17 @@ export function Settings() {
     if (spider > 0) parts.push(`${spider} 个需要 Spider 宿主`);
     if (external > 0) parts.push(`${external} 个需要外部应用`);
     return parts.join("，");
+  };
+
+  const readLog = async () => {
+    logBusy.set(true);
+    try {
+      logText.set(await spiderLog(200));
+    } catch (reason) {
+      logText.set(`读不到日志：${reason instanceof Error ? reason.message : String(reason)}`);
+    } finally {
+      logBusy.set(false);
+    }
   };
 
   const probe = async () => {
@@ -237,6 +251,26 @@ export function Settings() {
                     {activeConfig()?.config.spider ? "这个配置声明了 spider" : "这个配置没有声明 spider"}
                   </Text>
                 </View>
+                <View class="flex-row items-center gap-2">
+                  <AppButton
+                    label={logBusy() ? "读取中…" : "查看日志"}
+                    size="sm"
+                    disabled={logBusy()}
+                    onPress={() => void readLog()}
+                  />
+                  <Text class="text-xs text-muted-foreground">
+                    {`spider-data\spider-host.log 的最后 200 行`}
+                  </Text>
+                </View>
+                <If when={!!logText()}>
+                  <View style={{ height: 200 }}>
+                    <Scroll style={{ flex: 1 }}>
+                      <Text class="text-xs text-muted-foreground">
+                        {logText()}
+                      </Text>
+                    </Scroll>
+                  </View>
+                </If>
               </View>
             </Section>
 

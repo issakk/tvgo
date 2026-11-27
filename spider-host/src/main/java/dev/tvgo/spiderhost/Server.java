@@ -16,6 +16,18 @@ final class Server {
     static void serve(int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         server.createContext("/health", exchange -> respond(exchange, 200, "{\"ok\":true}"));
+        server.createContext("/log", exchange -> {
+            String query = exchange.getRequestURI().getQuery();
+            int lines = 200;
+            if (query != null && query.startsWith("lines=")) {
+                try {
+                    lines = Integer.parseInt(query.substring("lines=".length()));
+                } catch (NumberFormatException keepDefault) {
+                    lines = 200;
+                }
+            }
+            respond(exchange, 200, Log.tail(Math.max(1, Math.min(2000, lines))));
+        });
         server.createContext("/rpc", exchange -> {
             String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             String response;

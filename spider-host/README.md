@@ -91,6 +91,14 @@ built: `java.base`, `java.logging`, `java.net.http` (downloading a spider jar), 
 (the app's endpoint), `jdk.unsupported`, `jdk.crypto.ec` (TLS), `jdk.charsets` (GBK pages) and `jdk.zipfs`
 (okio opens jars through `FileSystems`). The host refuses to start and names the missing modules if one is gone.
 
+## Logs
+
+Everything the host and its payloads print is appended to `<data>/spider-host.log` (next to the converted jars,
+`%LOCALAPPDATA%\TVGo\spider-data` for the installed layout; it rotates at 4 MB into `.log.1`). The startup line
+names the data directory and the log path, every request gets a timestamped `ok`/`失败` line with its duration, and
+`GET http://127.0.0.1:29123/log?lines=200` returns the tail — that is what TVGo's 设置 → Spider 宿主 → 查看日志
+shows, so a report can be copied without finding the file.
+
 ## Debugging a payload
 
 ```bash

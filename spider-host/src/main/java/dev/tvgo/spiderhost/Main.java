@@ -24,7 +24,6 @@ public final class Main {
     private static final int THREADS = 4;
 
     private static final Map<String, Spider> SPIDERS = new ConcurrentHashMap<>();
-    private static final PrintStream OUT = new PrintStream(System.out, true, StandardCharsets.UTF_8);
     /** Swallows what a payload prints while it fails at something Android-only. */
     private static final PrintStream QUIET = new PrintStream(java.io.OutputStream.nullOutputStream());
     private static Payloads payloads;
@@ -37,7 +36,9 @@ public final class Main {
                     + "；请用 --add-modules " + String.join(",", missing) + " 重新 jlink");
             System.exit(2);
         }
+        Log.open(data);
         payloads = new Payloads(data.resolve("spiders"));
+        Log.note("数据目录 " + data.toAbsolutePath() + "，日志 " + Log.file().toAbsolutePath());
         if (args.length > 0 && "--serve".equals(args[0])) {
             int port = args.length > 1 ? Integer.parseInt(args[1]) : 29123;
             try {
@@ -52,36 +53,44 @@ public final class Main {
         }
         ExecutorService workers = Executors.newFixedThreadPool(THREADS);
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
-        OUT.println("{\"ready\":true}");
+        System.out.println("{\"ready\":true}");
         String line;
         while ((line = in.readLine()) != null) {
             String request = line.trim();
             if (request.isEmpty()) continue;
             if (request.contains("\"op\":\"shutdown\"")) break;
-            workers.submit(() -> OUT.println(handle(request)));
+            workers.submit(() -> System.out.println(handle(request)));
         }
         // Let the requests already read finish: the app closes stdin when it stops.
         workers.shutdown();
         if (!workers.awaitTermination(5, java.util.concurrent.TimeUnit.MINUTES)) workers.shutdownNow();
-        OUT.flush();
+        System.out.flush();
         System.exit(0);
     }
 
     /** Answers one request line; the HTTP server and stdin both go through here. */
     static String handle(String line) {
         long id = -1;
+        long started = System.currentTimeMillis();
+        String op = "";
+        String api = "";
         try {
             JSONObject request = new JSONObject(line);
             id = request.optLong("id", -1);
-            String op = request.optString("op", "");
+            op = request.optString("op", "");
+            api = request.optString("api", "");
             Object result = dispatch(op, request);
             JSONObject response = new JSONObject();
             response.put("id", id);
             response.put("ok", true);
             if (result != null) response.put("result", result);
+            if (!"ping".equals(op) && !"info".equals(op)) {
+                Log.note("请求 " + op + " " + api + " ok " + (System.currentTimeMillis() - started) + "ms");
+            }
             return response.toString();
         } catch (Throwable error) {
             Throwable root = root(error);
+            Log.note("请求 " + op + " " + api + " 失败 " + (System.currentTimeMillis() - started) + "ms: " + root);
             if (Boolean.getBoolean("tvgo.spider.trace")) root.printStackTrace(System.err);
             String message = root.getClass().getSimpleName()
                     + (root.getMessage() == null ? "" : ": " + root.getMessage());

@@ -54,6 +54,19 @@ interface SpiderResponse {
   error?: string;
 }
 
+/** The host's log tail, for the settings page's diagnostics view. */
+export async function spiderLog(lines = 200): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${hostUrl}/log?lines=${lines}`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** One request to the host, with the timeout and error shape the pages expect. */
 async function call(request: Record<string, unknown>): Promise<string> {
   if (!spiderJar) throw new Error("这个配置没有声明 spider，csp_ 站点无法运行");
