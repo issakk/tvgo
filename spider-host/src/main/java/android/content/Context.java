@@ -46,7 +46,7 @@ public class Context {
     }
 
     public SharedPreferences getSharedPreferences(String name, int mode) {
-        return new SharedPreferences(new File(dir("prefs"), name + ".json"));
+        return new SharedPreferencesImpl(new File(dir("prefs"), name + ".json"));
     }
 
     public static final String CONNECTIVITY_SERVICE = "connectivity";

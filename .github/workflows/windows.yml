@@ -1,8 +1,9 @@
 name: Windows
 
 on:
+  # A tag is what produces a package; a branch push only needs the checks, so main does not
+  # build one and a release does not run twice.
   push:
-    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -82,6 +83,7 @@ jobs:
         run: ./spider-host/build.ps1
 
       - name: Pack the spider host with a trimmed JRE
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -91,6 +93,11 @@ jobs:
           Copy-Item 'spider-host\build\spider-host.jar' (Join-Path $stage 'spider-host') -Force
           Copy-Item 'spider-host\vendor\*.jar' (Join-Path $stage 'spider-host\lib') -Force
           Copy-Item 'spider-host\start.cmd' (Join-Path $stage 'spider-host') -Force
+          # The one-click installer sits at the package root: it copies the package to
+          # %LOCALAPPDATA%\TVGo and adds a windowless login item.
+          foreach ($script in 'install.cmd', 'install-autostart.ps1', 'uninstall.cmd', 'uninstall-autostart.ps1') {
+              Copy-Item (Join-Path 'spider-host' $script) $stage -Force
+          }
           Copy-Item 'spider-host\README.md' $stage -Force
           # What the code links against (jdeps still needs the vendor jars), plus what it
           # only reaches through a service loader at run time: TLS providers, charsets
@@ -111,14 +118,17 @@ jobs:
           Get-ChildItem 'dist' | ForEach-Object { Write-Host "artifact: $($_.Name) ($($_.Length) bytes)" }
 
       - name: Install Inno Setup
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         continue-on-error: true
         run: choco install innosetup --no-progress -y
 
       - name: Package
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         run: nsh package --target windows
 
       - name: Collect artifacts
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
           if (-not (Test-Path '.nsh\out')) { throw 'nsh package wrote no .nsh\out' }
@@ -129,6 +139,7 @@ jobs:
           Get-ChildItem 'dist' | ForEach-Object { Write-Host "artifact: $($_.Name) ($($_.Length) bytes)" }
 
       - name: Upload artifacts
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: TVGo-windows

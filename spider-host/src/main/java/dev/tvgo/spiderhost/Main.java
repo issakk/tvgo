@@ -25,6 +25,8 @@ public final class Main {
 
     private static final Map<String, Spider> SPIDERS = new ConcurrentHashMap<>();
     private static final PrintStream OUT = new PrintStream(System.out, true, StandardCharsets.UTF_8);
+    /** Swallows what a payload prints while it fails at something Android-only. */
+    private static final PrintStream QUIET = new PrintStream(java.io.OutputStream.nullOutputStream());
     private static Payloads payloads;
 
     public static void main(String[] args) throws Exception {
@@ -38,7 +40,14 @@ public final class Main {
         payloads = new Payloads(data.resolve("spiders"));
         if (args.length > 0 && "--serve".equals(args[0])) {
             int port = args.length > 1 ? Integer.parseInt(args[1]) : 29123;
-            Server.serve(port);
+            try {
+                Server.serve(port);
+            } catch (java.net.BindException busy) {
+                // A second copy (a login item plus a manual start) is harmless: the app
+                // only talks to the port.
+                System.err.println("[host] 端口 " + port + " 已经被另一个 spider-host 占用，本进程退出。");
+                System.exit(0);
+            }
             return;
         }
         ExecutorService workers = Executors.newFixedThreadPool(THREADS);
@@ -184,7 +193,23 @@ public final class Main {
     private static void initPayload(ClassLoader loader) {
         try {
             Class<?> init = loader.loadClass("com.github.catvod.spider.Init");
-            init.getMethod("init", android.content.Context.class).invoke(null, android.app.Application.get());
+            java.lang.reflect.Method method = init.getMethod("init", android.content.Context.class);
+            // CatVodSpider's Init is Android bookkeeping: it chmods its own config file and
+            // starts keep-alive services. On a desktop that fails and the payload prints a
+            // stack trace; the context it needs is already set, so the trace is noise.
+            java.io.PrintStream stderr = System.err;
+            System.setErr(QUIET);
+            try {
+                method.invoke(null, android.app.Application.get());
+            } catch (java.lang.reflect.InvocationTargetException expected) {
+                PrintStream out = stderr;
+                Throwable cause = root(expected);
+                out.println("[host] payload Init 跳过 Android 专有的收尾（chmod/常驻服务）："
+                        + cause.getClass().getSimpleName()
+                        + (cause.getMessage() == null ? "" : ": " + cause.getMessage()));
+            } finally {
+                System.setErr(stderr);
+            }
         } catch (ClassNotFoundException absent) {
             // A payload without CatVodSpider's Init needs no context of its own.
         } catch (ReflectiveOperationException failed) {

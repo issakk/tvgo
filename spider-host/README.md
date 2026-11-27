@@ -8,8 +8,10 @@ classes and answers the app's requests over stdin/stdout.
 TVGo (TS)  --HTTP POST /rpc, one JSON per request-->  spider-host (JVM)  -->  payload spiders
 ```
 
-The app cannot start the host itself (its runtime gives it no path to files it ships), so the host is
-started by the user (`start.cmd`) or at login, and the app only connects to it. The address is a setting.
+The app cannot start the host itself: its runtime gives it no path to files it ships and no way to learn
+one, so the host runs as its own process. `install.cmd` puts the package under `%LOCALAPPDATA%\TVGo`, starts it
+with `javaw.exe` (no console) and adds a login item, so from then on it is simply there; `start.cmd` starts it
+in a console for debugging and `uninstall.cmd` removes the login item. The address stays a setting.
 
 ## Protocol
 
@@ -65,7 +67,8 @@ src/main/java/android/**                    Android stand-ins the payload calls
 src/main/java/com/github/catvod/**          the CatVod spider contract
 src/main/java/dev/tvgo/spiderhost/**        the host: RPC loop, HTTP server, dex conversion, repairs
 vendor/*.jar                                third-party jars (see LICENSE.md)
-start.cmd                                   starts the host on port 29123 (packaged layout)
+start.cmd                                   starts the host on port 29123 in this console
+install.cmd / uninstall.cmd                 one click: login item (windowless) / undo
 build.sh / build.ps1                        javac + jar
 ```
 

@@ -40,9 +40,11 @@ cannot convert. They are listed in Settings as unsupported and left out of brows
 
 `spider-host/` is a JDK program: it converts the configuration's `classes.dex` to JVM classes (repairing what
 dex2jar gets wrong), answers the CatVod `Spider` contract, and serves JSON over `http://127.0.0.1:29123`.
-The CI publishes `TVGo-spider-host-windows.zip` (jar + trimmed JRE + `start.cmd`) with each release; unpack it,
-run `start.cmd`, then set the address in Settings → Spider 宿主 and press 检测. `spider-host/README.md` documents
-the protocol and the repairs.
+The CI publishes `TVGo-spider-host-windows.zip` (jar + trimmed JRE) with each release: unpack it and run
+`install.cmd` once — it copies the package to `%LOCALAPPDATA%\TVGo`, starts it with `javaw.exe` (no console window)
+and adds a login item, so afterwards the host is simply there. `start.cmd` starts it in a console for debugging,
+`uninstall.cmd` removes the login item. The app finds it on `http://127.0.0.1:29123` (Settings → Spider 宿主 shows
+whether it answered). `spider-host/README.md` documents the protocol and the repairs.
 
 ## Using a configuration
 
