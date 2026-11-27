@@ -93,8 +93,10 @@ jobs:
           Copy-Item 'spider-host\build\spider-host.jar' (Join-Path $stage 'spider-host') -Force
           Copy-Item 'spider-host\vendor\*.jar' (Join-Path $stage 'spider-host\lib') -Force
           Copy-Item 'spider-host\start.cmd' (Join-Path $stage 'spider-host') -Force
+          Copy-Item 'spider-host\stop-host.ps1' (Join-Path $stage 'spider-host') -Force
           # The one-click installer sits at the package root: it copies the package to
-          # %LOCALAPPDATA%\TVGo and adds a windowless login item.
+          # %LOCALAPPDATA%\TVGo and adds a windowless login item. The app's own package gets
+          # the same host, but started by its installer instead (integrate-installer.ps1).
           foreach ($script in 'install.cmd', 'install-autostart.ps1', 'uninstall.cmd', 'uninstall-autostart.ps1') {
               Copy-Item (Join-Path 'spider-host' $script) $stage -Force
           }
@@ -126,6 +128,17 @@ jobs:
       - name: Package
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         run: nsh package --target windows
+
+      - name: Fold the spider host into the app package
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./spider-host/integrate-installer.ps1 `
+            -PackageDir (Join-Path $PWD '.nsh\out\TVGo') `
+            -Script (Join-Path $PWD '.nsh\out\TVGo.iss') `
+            -HostStage (Join-Path $env:RUNNER_TEMP 'spider-host') `
+            -Zip (Join-Path $PWD '.nsh\out\TVGo.zip')
 
       - name: Collect artifacts
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
