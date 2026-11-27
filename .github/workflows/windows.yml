@@ -1,0 +1,112 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The NSH release every build uses; bump it together with nsh.json's "nsh" range.
+  NSH_VERSION: v0.7.1
+  CARGO_INCREMENTAL: "0"
+  LIBCLANG_PATH: C:\Program Files\LLVM\bin
+  RUST_MIN_STACK: "268435456"
+
+jobs:
+  build:
+    name: Build Windows package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore the nsh distribution
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\nsh-dist
+          key: nsh-${{ env.NSH_VERSION }}-windows-x86_64
+
+      - name: Install nsh
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'nsh-dist'
+          $exe = Join-Path $dir 'nsh\bin\nsh.exe'
+          if (-not (Test-Path $exe)) {
+            $asset = 'nsh-windows-x86_64.zip'
+            $url = "https://github.com/longbridge/nsh/releases/download/$env:NSH_VERSION/$asset"
+            Write-Host "Downloading $url"
+            $zip = Join-Path $env:RUNNER_TEMP $asset
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
+            $expected = ((Invoke-WebRequest -UseBasicParsing -Uri "$url.sha256").Content -split '\s+')[0]
+            $actual = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash
+            if ($actual -ne $expected) { throw "nsh: checksum mismatch for $asset" }
+            Expand-Archive -Path $zip -DestinationPath $dir
+          }
+          if (-not (Test-Path $exe)) { throw "nsh: $exe was not installed" }
+          (Join-Path $dir 'nsh\bin') | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Show versions
+        shell: pwsh
+        run: |
+          nsh --version
+          cargo --version
+
+      - name: Type check
+        run: nsh check
+
+      - name: Build bundle
+        run: nsh build
+
+      - name: Test
+        run: nsh test
+
+      - name: Install Inno Setup
+        shell: pwsh
+        continue-on-error: true
+        run: choco install innosetup --no-progress -y
+
+      - name: Package
+        run: nsh package --target windows
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          if (-not (Test-Path '.nsh\out')) { throw 'nsh package wrote no .nsh\out' }
+          Get-ChildItem '.nsh\out' | ForEach-Object { Write-Host $_.FullName }
+          New-Item -ItemType Directory -Force -Path 'dist' | Out-Null
+          Copy-Item '.nsh\out\*.zip' 'dist\' -Force
+          if (Test-Path '.nsh\out\*-setup.exe') { Copy-Item '.nsh\out\*-setup.exe' 'dist\' -Force }
+          Get-ChildItem 'dist' | ForEach-Object { Write-Host "artifact: $($_.Name) ($($_.Length) bytes)" }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TVGo-windows
+          path: |
+            dist/*.zip
+            dist/*-setup.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "TVGo $tag" --notes "Windows build of TVGo $tag. Unpack the zip and run TVGo.exe."
+          }
+          $files = Get-ChildItem 'dist' -File | ForEach-Object { $_.FullName }
+          gh release upload $tag @files --clobber
