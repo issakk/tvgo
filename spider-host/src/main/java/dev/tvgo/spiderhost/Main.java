@@ -29,6 +29,12 @@ public final class Main {
 
     public static void main(String[] args) throws Exception {
         Path data = Path.of(System.getProperty("tvgo.spider.data", "spider-data"));
+        List<String> missing = Runtime.missing();
+        if (!missing.isEmpty()) {
+            System.err.println("[host] 这个 JRE 缺少模块：" + String.join(", ", missing)
+                    + "；请用 --add-modules " + String.join(",", missing) + " 重新 jlink");
+            System.exit(2);
+        }
         payloads = new Payloads(data.resolve("spiders"));
         if (args.length > 0 && "--serve".equals(args[0])) {
             int port = args.length > 1 ? Integer.parseInt(args[1]) : 29123;

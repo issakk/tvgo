@@ -81,6 +81,13 @@ At runtime the host needs the vendored jars on its classpath (ours first, so the
 java -cp "build/spider-host.jar:vendor/*" dev.tvgo.spiderhost.Main --serve 29123
 ```
 
+## Runtime modules
+
+The packaged JRE is trimmed, so the modules the host reaches only at run time must be listed when it is
+built: `java.base`, `java.logging`, `java.net.http` (downloading a spider jar), `java.xml`, `jdk.httpserver`
+(the app's endpoint), `jdk.unsupported`, `jdk.crypto.ec` (TLS), `jdk.charsets` (GBK pages) and `jdk.zipfs`
+(okio opens jars through `FileSystems`). The host refuses to start and names the missing modules if one is gone.
+
 ## Debugging a payload
 
 ```bash

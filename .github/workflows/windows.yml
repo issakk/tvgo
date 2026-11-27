@@ -92,7 +92,17 @@ jobs:
           Copy-Item 'spider-host\vendor\*.jar' (Join-Path $stage 'spider-host\lib') -Force
           Copy-Item 'spider-host\start.cmd' (Join-Path $stage 'spider-host') -Force
           Copy-Item 'spider-host\README.md' $stage -Force
-          & jlink --add-modules java.base,jdk.httpserver,java.logging,java.sql,java.naming,java.security.jgss,jdk.unsupported `
+          # What the code links against (jdeps still needs the vendor jars), plus what it
+          # only reaches through a service loader at run time: TLS providers, charsets
+          # (GBK pages), and the jar filesystem okio opens.
+          $wanted = @(
+            'java.base', 'java.logging', 'java.net.http', 'java.xml', 'jdk.httpserver',
+            'jdk.unsupported', 'jdk.crypto.ec', 'jdk.charsets', 'jdk.zipfs'
+          )
+          $available = (& java --list-modules) -replace '@.*$', ''
+          $modules = ($wanted | Where-Object { $available -contains $_ }) -join ','
+          Write-Host "jlink modules: $modules"
+          & jlink --add-modules $modules `
               --strip-debug --no-header-files --no-man-pages `
               --output (Join-Path $stage 'runtime\jre')
           if ($LASTEXITCODE -ne 0) { throw "jlink failed with exit code $LASTEXITCODE" }
